@@ -54,7 +54,12 @@ Status SequentialExecutor::Execute(const SessionState& session_state, const std:
 
     auto node_index = node_exec_plan.node_index;
     auto p_op_kernel = session_state.GetKernel(node_index);
-
+#ifdef ONNXRUNTIME_ENABLE_INSTRUMENT
+    TraceLoggingActivity<ort_provider> node_activity;
+    if(ortrun_activity_ !=nullptr) node_activity.SetRelatedActivity(*ortrun_activity_);
+    const std::string& opname = p_op_kernel->Info().GetKernelDef().OpName();
+    TraceLoggingWriteStart(node_activity, "ExecNode", TraceLoggingValue(opname.c_str(), "opname"));
+#endif
     // if a kernel has been added in the session state, it better be NON-null.
     if (p_op_kernel == nullptr)
       return ORT_MAKE_STATUS(ONNXRUNTIME, FAIL, "Got nullptr from GetKernel for node: ",
@@ -165,7 +170,9 @@ Status SequentialExecutor::Execute(const SessionState& session_state, const std:
                                                      sync_time_begin,
                                                      {{"op_name", p_op_kernel->KernelDef().OpName()}});
     }
-
+#ifdef ONNXRUNTIME_ENABLE_INSTRUMENT
+    TraceLoggingWriteStop(node_activity, "ExecNode");
+#endif
 #if defined(DEBUG_NODE_INPUTS_OUTPUTS)
     utils::DumpNodeOutputs(op_kernel_context, p_op_kernel->Node(), session_state);
 #endif

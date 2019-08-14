@@ -86,18 +86,8 @@ MlasExecuteThreaded(
         return;
     }
 
-#ifdef MLAS_NO_ONNXRUNTIME_THREADPOOL
     MLAS_UNREFERENCED_PARAMETER(ThreadPool);
-#else
-    //
-    // Schedule the threaded iterations using the thread pool object.
-    //
 
-    if (ThreadPool != nullptr) {
-        ThreadPool->ParallelFor(Iterations, [&](int32_t tid) { ThreadedRoutine(Context, tid); });
-        return;
-    }
-#endif
 
 #if defined(MLAS_USE_WIN32_THREADPOOL)
 
@@ -115,7 +105,7 @@ MlasExecuteThreaded(
         WorkBlock.ThreadedRoutine = ThreadedRoutine;
         WorkBlock.Context = Context;
 
-        for (int32_t tid = 1; tid < Iterations; tid++) {
+        for (int32_t tid = 1; tid < Iterations+1; tid++) {
             SubmitThreadpoolWork(WorkObject);
         }
 
@@ -123,7 +113,7 @@ MlasExecuteThreaded(
         // Execute the remaining iteration on this thread.
         //
 
-        ThreadedRoutine(Context, Iterations - 1);
+        //ThreadedRoutine(Context, Iterations - 1);
 
         //
         // Wait for the work object callbacks to complete.

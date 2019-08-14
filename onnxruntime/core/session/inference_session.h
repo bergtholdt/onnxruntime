@@ -22,6 +22,10 @@
 #ifdef ENABLE_LANGUAGE_INTEROP_OPS
 #include "core/language_interop_ops/language_interop_ops.h"
 #endif
+#ifdef ONNXRUNTIME_ENABLE_INSTRUMENT
+#include "core/platform/tracing.h"
+#include <TraceLoggingActivity.h>
+#endif
 
 namespace onnxruntime {  // forward declarations
 class GraphTransformer;
@@ -47,10 +51,10 @@ class LoggingManager;
 }
 
 /**
-  * Configuration information for a session.
-  */
+ * Configuration information for a session.
+ */
 struct SessionOptions {
-  //int num_threads; // not used now until we re-introduce threadpools for async execution
+  // int num_threads; // not used now until we re-introduce threadpools for async execution
   bool enable_sequential_execution = true;  // TODO: should we default to sequential execution?
 
   // enable profiling for this session.
@@ -89,8 +93,8 @@ struct SessionOptions {
 };
 
 /**
-  * Pre-defined and custom metadata about the model.
-  */
+ * Pre-defined and custom metadata about the model.
+ */
 struct ModelMetadata {
   std::string producer_name;
   std::string graph_name;
@@ -133,18 +137,17 @@ class InferenceSession {
     for logging. This will use the default logger id in messages.
     See core/common/logging/logging.h for details, and how LoggingManager::DefaultLogger works.
     */
-  explicit InferenceSession(const SessionOptions& session_options,
-                            logging::LoggingManager* logging_manager = nullptr);
+  explicit InferenceSession(const SessionOptions& session_options, logging::LoggingManager* logging_manager = nullptr);
 
   virtual ~InferenceSession();
 
   /**
-    * Register an execution provider. If you've one to register, call this before invoking Initialize().
-    * The order of invocation indicates the preference order as well. In other words call this method
-    * on your most preferred execution provider first followed by the less preferred ones.
-    * Calling this API is optional in which case onnxruntime will use its internal CPU execution provider.
-    * @return OK if success.
-    */
+   * Register an execution provider. If you've one to register, call this before invoking Initialize().
+   * The order of invocation indicates the preference order as well. In other words call this method
+   * on your most preferred execution provider first followed by the less preferred ones.
+   * Calling this API is optional in which case onnxruntime will use its internal CPU execution provider.
+   * @return OK if success.
+   */
   common::Status RegisterExecutionProvider(std::unique_ptr<IExecutionProvider> p_exec_provider);
 
   /**
@@ -159,60 +162,60 @@ class InferenceSession {
                                           TransformerLevel level = TransformerLevel::Level2);
 
   /**
-    * Enable a custom set of transformers. Call this before invoking Initialize().
-    * Calling this API is optional.
-    * When this list is provided ORT ignores the levels set in session options.
-    * @return OK if success.
-    */
+   * Enable a custom set of transformers. Call this before invoking Initialize().
+   * Calling this API is optional.
+   * When this list is provided ORT ignores the levels set in session options.
+   * @return OK if success.
+   */
   common::Status AddCustomTransformerList(const std::vector<std::string>& transformers_to_enable);
 
   /**
-    * Add custom ops. This API is not thread safe.
-    */
+   * Add custom ops. This API is not thread safe.
+   */
   common::Status AddCustomOpDomains(const std::vector<OrtCustomOpDomain*>& ops);
 
   /**
-    * Register a custom registry for operator schema and kernels.  If you've one to register,
-    * call this before invoking Initialize().
-    * The order of invocation indicates the reversed preference order: Register your most
-    * preferred registry at the end.
-    * Calling this API is optional.
-    * This API is not thread safe.
-    * @return OK if success.
-    */
+   * Register a custom registry for operator schema and kernels.  If you've one to register,
+   * call this before invoking Initialize().
+   * The order of invocation indicates the reversed preference order: Register your most
+   * preferred registry at the end.
+   * Calling this API is optional.
+   * This API is not thread safe.
+   * @return OK if success.
+   */
   common::Status RegisterCustomRegistry(std::shared_ptr<CustomRegistry> custom_registry);
 
   /**
-    * Load an ONNX model.
-    * @param model_uri absolute path of the model file.
-    * @return OK if success.
-    */
+   * Load an ONNX model.
+   * @param model_uri absolute path of the model file.
+   * @return OK if success.
+   */
   common::Status Load(const std::string& model_uri);
 #ifdef _WIN32
   common::Status Load(const std::wstring& model_uri);
 #endif
   /**
-    * Load an ONNX model.
-    * @param istream object of the model.
-    * @return OK if success.
-    */
+   * Load an ONNX model.
+   * @param istream object of the model.
+   * @return OK if success.
+   */
   common::Status Load(std::istream& model_istream);
 
   /**
-    * Load an ONNX model.
-    * @param model_data Model data buffer
-    * @param model_data_len Model data buffer size
-    * @return OK if success.
-    */
+   * Load an ONNX model.
+   * @param model_data Model data buffer
+   * @param model_data_len Model data buffer size
+   * @return OK if success.
+   */
   common::Status Load(const void* model_data, int model_data_len);
 
   /**
-    * Initializes a previously loaded model. Initialization includes but is not
-    * limited to graph transformations, construction of kernels, etc.
-    * This method assumes that a method has been loaded previously.
-    * This API is thread-safe.
-    * @return OK if success
-    */
+   * Initializes a previously loaded model. Initialization includes but is not
+   * limited to graph transformations, construction of kernels, etc.
+   * This method assumes that a method has been loaded previously.
+   * This API is thread-safe.
+   * @return OK if success
+   */
   common::Status Initialize();
 
   common::Status Run(const RunOptions& run_options, const std::vector<std::string>& feed_names,
@@ -220,15 +223,15 @@ class InferenceSession {
                      std::vector<OrtValue>* p_fetches);
 
   /**
-    * Run a pre-loaded and pre-intialized model.
-    * Multiple threads are allowed to run this function; hence its thread-safe.
-    * @param feeds named inputs owned by client code and should not be changed during
-    *        execution of this function.
-    * @param output_names output names
-    * @param p_fetches output values in the order specified by output_names.
-    *        This should not be changed during execution of this function.
-    * @return OK if success.
-    */
+   * Run a pre-loaded and pre-intialized model.
+   * Multiple threads are allowed to run this function; hence its thread-safe.
+   * @param feeds named inputs owned by client code and should not be changed during
+   *        execution of this function.
+   * @param output_names output names
+   * @param p_fetches output values in the order specified by output_names.
+   *        This should not be changed during execution of this function.
+   * @return OK if success.
+   */
   common::Status Run(const NameMLValMap& feeds, const std::vector<std::string>& output_names,
                      std::vector<OrtValue>* p_fetches);
 
@@ -241,55 +244,55 @@ class InferenceSession {
                      const std::vector<std::string>& output_names, std::vector<OrtValue>* p_fetches);
 
   /**
-  * Creates a new binding object for binding inputs and outputs.
-  * @param provider_type specifies the location where the inputs need to be potentially copied.
-  * See IOBinding class for more info.
-  */
+   * Creates a new binding object for binding inputs and outputs.
+   * @param provider_type specifies the location where the inputs need to be potentially copied.
+   * See IOBinding class for more info.
+   */
   common::Status NewIOBinding(std::unique_ptr<IOBinding>* io_binding);
 
   common::Status Run(const RunOptions& run_options, IOBinding& io_binding);
   common::Status Run(IOBinding& io_binding);
 
   /**
-    * @return pair.first = OK; FAIL otherwise. pair.second is non-NULL when pair.first = OK.
-    * @note lifetime of the returned pointer is valid as long as the Session object is live.
-    */
+   * @return pair.first = OK; FAIL otherwise. pair.second is non-NULL when pair.first = OK.
+   * @note lifetime of the returned pointer is valid as long as the Session object is live.
+   */
   std::pair<common::Status, const ModelMetadata*> GetModelMetadata() const;
 
   /**
-    * Get all input definitions of the model. This does not include weights. Use this
-    * to get the name/type/shapes of the inputs.
-    * @return pair.first = OK; FAIL otherwise. pair.second is non-NULL when pair.first = OK.
-    * @note lifetime of the returned pointer is valid as long as the Session object is live.
-    */
+   * Get all input definitions of the model. This does not include weights. Use this
+   * to get the name/type/shapes of the inputs.
+   * @return pair.first = OK; FAIL otherwise. pair.second is non-NULL when pair.first = OK.
+   * @note lifetime of the returned pointer is valid as long as the Session object is live.
+   */
   std::pair<common::Status, const InputDefList*> GetModelInputs() const;
 
   /**
-    * Get all output definitions of the model. Use this to get the name/type/shapes of the outputs.
-    * @return pair.first = OK; FAIL otherwise. pair.second is non-NULL when pair.first = OK.
-    * @note lifetime of the returned pointer is valid as long as the Session object is live.
-    */
+   * Get all output definitions of the model. Use this to get the name/type/shapes of the outputs.
+   * @return pair.first = OK; FAIL otherwise. pair.second is non-NULL when pair.first = OK.
+   * @note lifetime of the returned pointer is valid as long as the Session object is live.
+   */
   std::pair<common::Status, const OutputDefList*> GetModelOutputs() const;
 
   /**
-    * Get the current number of in-progress concurrent Run calls.
-    */
+   * Get the current number of in-progress concurrent Run calls.
+   */
   int GetCurrentNumRuns() const;
 
   /**
-    * Start profiling on this inference session. This simply turns on profiling events to be
-    * recorded. A corresponding EndProfiling has to follow to write profiling data to a file.
-    *@param file_prefix is the prefix of the profile file. It can include a directory path.
-    */
+   * Start profiling on this inference session. This simply turns on profiling events to be
+   * recorded. A corresponding EndProfiling has to follow to write profiling data to a file.
+   *@param file_prefix is the prefix of the profile file. It can include a directory path.
+   */
   void StartProfiling(const std::string& file_prefix);
 #ifdef _WIN32
   void StartProfiling(const std::wstring& file_prefix);
 #endif
   /**
-    * Start profiling on this inference session. This simply turns on profiling events to be
-    * recorded. A corresponding EndProfiling has to follow to send profiling events through the logger's ISink.
-    *@param logger_ptr is pointer to the logger where profiling events will be sent to.
-    */
+   * Start profiling on this inference session. This simply turns on profiling events to be
+   * recorded. A corresponding EndProfiling has to follow to send profiling events through the logger's ISink.
+   *@param logger_ptr is pointer to the logger where profiling events will be sent to.
+   */
   void StartProfiling(const logging::Logger* logger_ptr);
 
   /**
@@ -300,17 +303,17 @@ class InferenceSession {
 
  protected:
   /**
-    * Load an ONNX model.
-    * @param protobuf object corresponding to the model file. model_proto will be copied by the API.
-    * @return OK if success.
-    */
+   * Load an ONNX model.
+   * @param protobuf object corresponding to the model file. model_proto will be copied by the API.
+   * @return OK if success.
+   */
   common::Status Load(const ONNX_NAMESPACE::ModelProto& model_proto);
 
   /**
-    * Load an ONNX model.
-    * @param protobuf object corresponding to the model file. This is primarily to support large models.
-    * @return OK if success.
-    */
+   * Load an ONNX model.
+   * @param protobuf object corresponding to the model file. This is primarily to support large models.
+   * @return OK if success.
+   */
   common::Status Load(std::unique_ptr<ONNX_NAMESPACE::ModelProto> p_model_proto);
 
   common::Status DoPostLoadProcessing(onnxruntime::Model& model);
@@ -334,9 +337,7 @@ class InferenceSession {
  private:
   ORT_DISALLOW_COPY_ASSIGNMENT_AND_MOVE(InferenceSession);
 
-  bool HasLocalSchema() const {
-    return !custom_schema_registries_.empty();
-  }
+  bool HasLocalSchema() const { return !custom_schema_registries_.empty(); }
 
   common::Status SaveModelMetadata(const onnxruntime::Model& model);
 
@@ -352,10 +353,8 @@ class InferenceSession {
 
   common::Status TransformGraph(onnxruntime::Graph& graph,
                                 const onnxruntime::GraphTransformerManager& graph_transformer_mgr,
-                                const ExecutionProviders& providers,
-                                KernelRegistryManager& kernel_registry_manager,
-                                const InsertCastTransformer& insert_cast_transformer,
-                                SessionState& session_state);
+                                const ExecutionProviders& providers, KernelRegistryManager& kernel_registry_manager,
+                                const InsertCastTransformer& insert_cast_transformer, SessionState& session_state);
 
   common::Status CreateSubgraphSessionState(Graph& graph, SessionState& session_state);
 
@@ -367,13 +366,13 @@ class InferenceSession {
 
   void InitLogger(logging::LoggingManager* logging_manager);
 
-  common::Status CheckShapes(const std::string& input_name,
-                             const TensorShape& input_shape,
+  common::Status CheckShapes(const std::string& input_name, const TensorShape& input_shape,
                              const TensorShape& expected_shape) const;
 
   common::Status ValidateInputs(const std::vector<std::string>& feed_names, const std::vector<OrtValue>& feeds) const;
 
-  common::Status ValidateOutputs(const std::vector<std::string>& output_names, const std::vector<OrtValue>* p_fetches) const;
+  common::Status ValidateOutputs(const std::vector<std::string>& output_names,
+                                 const std::vector<OrtValue>* p_fetches) const;
 
   common::Status WaitForNotification(Notification* p_executor_done, int64_t timeout_in_ms);
 
@@ -421,8 +420,7 @@ class InferenceSession {
 
   struct InputDefMetaData {
     InputDefMetaData(const NodeArg* node_arg0, MLDataType ml_data_type0, TensorShape&& tensor_shape0)
-        : node_arg(node_arg0), ml_data_type(ml_data_type0), tensor_shape(std::move(tensor_shape0)) {
-    }
+        : node_arg(node_arg0), ml_data_type(ml_data_type0), tensor_shape(std::move(tensor_shape0)) {}
     const NodeArg* node_arg;
     MLDataType ml_data_type;
     TensorShape tensor_shape;  // not applicable if the input is non-tensor type
@@ -444,12 +442,15 @@ class InferenceSession {
 
   InsertCastTransformer insert_cast_transformer_;
 
-  //CustomRegistry objects own the corresponding KernelRegistry and OnnxRuntimeOpSchemaRegistry objects.
-  //So its lifetime should be same as its constituents. This vector is to extend the lifetime of the owner.
+  // CustomRegistry objects own the corresponding KernelRegistry and OnnxRuntimeOpSchemaRegistry objects.
+  // So its lifetime should be same as its constituents. This vector is to extend the lifetime of the owner.
   std::vector<std::shared_ptr<CustomRegistry>> custom_registries_;
 
 #ifdef ENABLE_LANGUAGE_INTEROP_OPS
   InterOpDomains interop_domains_;
+#endif
+#ifdef ONNXRUNTIME_ENABLE_INSTRUMENT
+  TraceLoggingActivity<ort_provider> session_activity;  
 #endif
 };
 }  // namespace onnxruntime

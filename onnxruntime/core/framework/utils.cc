@@ -30,11 +30,9 @@ common::Status AllocateHelper(const IExecutionProvider& execution_provider, int 
     return Status(common::ONNXRUNTIME, common::FAIL, "invalid allocator");
   }
 
-  std::unique_ptr<Tensor> p_tensor = std::make_unique<Tensor>(fetched_tensor.DataType(),
-                                                              fetched_tensor.Shape(),
-                                                              allocator);
-  output_mlvalue.Init(p_tensor.release(),
-                      DataTypeImpl::GetType<Tensor>(),
+  std::unique_ptr<Tensor> p_tensor =
+      std::make_unique<Tensor>(fetched_tensor.DataType(), fetched_tensor.Shape(), allocator);
+  output_mlvalue.Init(p_tensor.release(), DataTypeImpl::GetType<Tensor>(),
                       DataTypeImpl::GetType<Tensor>()->GetDeleteFunc());
 
   return Status::OK();
@@ -52,15 +50,13 @@ const std::string& GetNodeInputProviderType(const SessionState::NodeInfo& info) 
   // need a std::string that doesn't go away for kCpuExecutionProvider so we can return a reference.
   static const std::string cpu_execution_provider{onnxruntime::kCpuExecutionProvider};
 
-  auto& required_provider_type = node_input_on_cpu ? cpu_execution_provider
-                                                   : info.p_node->GetExecutionProviderType();
+  auto& required_provider_type = node_input_on_cpu ? cpu_execution_provider : info.p_node->GetExecutionProviderType();
 
   return required_provider_type;
 }
 
 static Status CopyMLValue(const DataTransferManager& data_transfer_mgr,
-                          const FeedsFetchesManager::MLValueCopyInfo& copy_info,
-                          const OrtValue& source_mlvalue,
+                          const FeedsFetchesManager::MLValueCopyInfo& copy_info, const OrtValue& source_mlvalue,
                           OrtValue& target_mlvalue) {
   if (copy_info.copy_provider == nullptr) {
     target_mlvalue = source_mlvalue;
@@ -86,7 +82,7 @@ common::Status CopyOneInputAcrossDevices(const SessionState& session_state, cons
                                          FeedsFetchesManager::MLValueCopyInfo& copy_info) {
   needed_copy = false;
 
-  //TODO: make it configurable
+  // TODO: make it configurable
   const int target_device_id = 0;
   std::vector<SessionState::NodeInfo> node_info_vec;
   ORT_RETURN_IF_ERROR(session_state.GetInputNodeInfo(input_name, node_info_vec));
@@ -121,8 +117,9 @@ common::Status CopyOneInputAcrossDevices(const SessionState& session_state, cons
       ORT_ENFORCE(p_input_provider);
     }
 
-    //no copy for TRT and  nGraph
-    if (required_provider_type == onnxruntime::kTensorrtExecutionProvider || required_provider_type == onnxruntime::kNGraphExecutionProvider) {
+    // no copy for TRT and  nGraph
+    if (required_provider_type == onnxruntime::kTensorrtExecutionProvider ||
+        required_provider_type == onnxruntime::kNGraphExecutionProvider) {
       new_mlvalue = orig_mlvalue;
       break;
     }
@@ -134,8 +131,7 @@ common::Status CopyOneInputAcrossDevices(const SessionState& session_state, cons
     }
 
     // If a node requires input on cpu and input tensor is allocated with pinned memory allocator, don't do copy
-    if (required_provider_type == onnxruntime::kCpuExecutionProvider &&
-        input_tensor_loc.mem_type == OrtMemTypeCPU) {
+    if (required_provider_type == onnxruntime::kCpuExecutionProvider && input_tensor_loc.mem_type == OrtMemTypeCPU) {
       new_mlvalue = orig_mlvalue;
       break;
     }
@@ -143,9 +139,8 @@ common::Status CopyOneInputAcrossDevices(const SessionState& session_state, cons
     auto* required_provider = exec_providers.Get(required_provider_type);
     ORT_ENFORCE(required_provider);
 
-    auto* p_copy_provider = (required_provider_type != onnxruntime::kCpuExecutionProvider)
-                                ? required_provider
-                                : p_input_provider;
+    auto* p_copy_provider =
+        (required_provider_type != onnxruntime::kCpuExecutionProvider) ? required_provider : p_input_provider;
 
     copy_info.allocation_device_id = target_device_id;
     copy_info.allocation_provider = required_provider;
@@ -204,10 +199,10 @@ static common::Status CopyInputsAcrossDevices(const SessionState& session_state,
 }
 
 // copies inputs across devices only if required using cached copy_info
-static common::Status CachedCopyInputsAcrossDevices(
-    const std::vector<OrtValue>& orig_feeds, std::vector<OrtValue>& new_feeds,
-    const std::vector<FeedsFetchesManager::MLValueCopyInfo>& copy_info,
-    const DataTransferManager& data_transfer_mgr) {
+static common::Status CachedCopyInputsAcrossDevices(const std::vector<OrtValue>& orig_feeds,
+                                                    std::vector<OrtValue>& new_feeds,
+                                                    const std::vector<FeedsFetchesManager::MLValueCopyInfo>& copy_info,
+                                                    const DataTransferManager& data_transfer_mgr) {
   size_t num_feeds = orig_feeds.size();
   ORT_ENFORCE(copy_info.size() == num_feeds);
 
@@ -242,8 +237,7 @@ static common::Status SetupFetchesForExecute(const SessionState& session_state,
   auto p_graph = session_state.GetGraphViewer();
   ORT_ENFORCE(p_graph);
 
-  auto contains = [](const std::vector<std::string>& output_names,
-                     const std::string& name) {
+  auto contains = [](const std::vector<std::string>& output_names, const std::string& name) {
     auto it = std::find(std::begin(output_names), std::end(output_names), name);
     if (it == output_names.end()) {
       return std::make_pair(false, size_t(0));
@@ -259,8 +253,7 @@ static common::Status SetupFetchesForExecute(const SessionState& session_state,
     }
 
     for (auto* arg : node.OutputDefs()) {
-      if (!arg->Exists() ||
-          !(found = contains(output_names, arg->Name())).first) {
+      if (!arg->Exists() || !(found = contains(output_names, arg->Name())).first) {
         continue;
       }
 
@@ -375,9 +368,8 @@ static common::Status CopyOutputsAcrossDevices(const SessionState& session_state
 
     needed_copy = true;
 
-    auto* p_copy_provider = (fetched_provider_type != onnxruntime::kCpuExecutionProvider)
-                                ? p_fetched_provider
-                                : p_output_provider;
+    auto* p_copy_provider =
+        (fetched_provider_type != onnxruntime::kCpuExecutionProvider) ? p_fetched_provider : p_output_provider;
 
     const int device_id = 0;  // TODO: As per comment in the copy input code, make this configurable.
     FeedsFetchesManager::MLValueCopyInfo copy_info{device_id, p_output_provider, p_copy_provider};
@@ -391,10 +383,10 @@ static common::Status CopyOutputsAcrossDevices(const SessionState& session_state
   return Status::OK();
 }
 
-static common::Status CachedCopyOutputsAcrossDevices(
-    const std::vector<OrtValue>& fetches, std::vector<OrtValue>& user_fetches,
-    const std::vector<FeedsFetchesManager::MLValueCopyInfo>& copy_info,
-    const DataTransferManager& data_transfer_mgr) {
+static common::Status CachedCopyOutputsAcrossDevices(const std::vector<OrtValue>& fetches,
+                                                     std::vector<OrtValue>& user_fetches,
+                                                     const std::vector<FeedsFetchesManager::MLValueCopyInfo>& copy_info,
+                                                     const DataTransferManager& data_transfer_mgr) {
   auto num_outputs = fetches.size();
 
   // internal logic error if these are mismatched
@@ -427,21 +419,21 @@ common::Status ExecuteGraphWithCachedInfo(
     const SessionState& session_state, const FeedsFetchesManager& feeds_fetches_manager,
     const std::vector<OrtValue>& feeds, std::vector<OrtValue>& fetches,
     const std::unordered_map<size_t, IExecutor::CustomAllocator>& fetch_allocators, bool sequential_execution,
-    const bool& terminate_flag, const logging::Logger& logger) {
+    const bool& terminate_flag, const logging::Logger& logger, void* tracer) {
   const auto& feeds_fetches_info = feeds_fetches_manager.GetFeedsFetchesInfo();
   auto device_copy_checks = feeds_fetches_manager.GetDeviceCopyChecks();
 
   std::unique_ptr<IExecutor> p_exec;
   if (sequential_execution) {
-    p_exec = std::unique_ptr<IExecutor>(new SequentialExecutor(terminate_flag));
+	p_exec = std::unique_ptr<IExecutor>(
+	        new SequentialExecutor(tracer, terminate_flag));    
   } else {
     p_exec = std::unique_ptr<IExecutor>(new ParallelExecutor(session_state, terminate_flag));
   }
 
   if (device_copy_checks.status == DeviceCopyCheck::NoCopy) {
     // no device copies are needed so simple execute
-    ORT_RETURN_IF_ERROR(p_exec->Execute(session_state,
-                                        feeds_fetches_info.feeds_mlvalue_idxs, feeds,
+    ORT_RETURN_IF_ERROR(p_exec->Execute(session_state, feeds_fetches_info.feeds_mlvalue_idxs, feeds,
                                         feeds_fetches_info.fetches_mlvalue_idxs, fetches, fetch_allocators, logger));
   } else {
     const std::vector<OrtValue>* p_feeds = &feeds;
@@ -451,9 +443,8 @@ common::Status ExecuteGraphWithCachedInfo(
 
     // Copy inputs
     if (device_copy_checks.input_copy_needed == DeviceCopyCheck::Copy) {
-      ORT_RETURN_IF_ERROR(CachedCopyInputsAcrossDevices(feeds, device_feeds,
-                                                        feeds_fetches_manager.GetFeedsDeviceCopiers(),
-                                                        session_state.GetDataTransferMgr()));
+      ORT_RETURN_IF_ERROR(CachedCopyInputsAcrossDevices(
+          feeds, device_feeds, feeds_fetches_manager.GetFeedsDeviceCopiers(), session_state.GetDataTransferMgr()));
       p_feeds = &device_feeds;
     }
 
@@ -470,15 +461,12 @@ common::Status ExecuteGraphWithCachedInfo(
       p_fetches = &device_fetches;
     }
 
-    ORT_RETURN_IF_ERROR(p_exec->Execute(session_state,
-                                        feeds_fetches_info.feeds_mlvalue_idxs, *p_feeds,
-                                        feeds_fetches_info.fetches_mlvalue_idxs, *p_fetches, fetch_allocators,
-                                        logger));
+    ORT_RETURN_IF_ERROR(p_exec->Execute(session_state, feeds_fetches_info.feeds_mlvalue_idxs, *p_feeds,
+                                        feeds_fetches_info.fetches_mlvalue_idxs, *p_fetches, fetch_allocators, logger));
 
     if (device_copy_checks.output_copy_needed == DeviceCopyCheck::Copy) {
-      ORT_RETURN_IF_ERROR(CachedCopyOutputsAcrossDevices(*p_fetches, fetches,
-                                                         feeds_fetches_manager.GetFetchesDeviceCopiers(),
-                                                         session_state.GetDataTransferMgr()));
+      ORT_RETURN_IF_ERROR(CachedCopyOutputsAcrossDevices(
+          *p_fetches, fetches, feeds_fetches_manager.GetFetchesDeviceCopiers(), session_state.GetDataTransferMgr()));
     }
   }
 
@@ -490,7 +478,7 @@ common::Status ExecuteGraph(const SessionState& session_state, FeedsFetchesManag
                             const std::vector<OrtValue>& feeds, std::vector<OrtValue>& fetches,
                             const std::unordered_map<size_t, IExecutor::CustomAllocator>& fetch_allocators,
                             bool sequential_execution, const bool& terminate_flag, const logging::Logger& logger,
-                            bool cache_copy_info) {
+                            bool cache_copy_info, void* tracer) {
   const auto& feeds_fetches_info = feeds_fetches_manager.GetFeedsFetchesInfo();
   auto device_copy_checks = feeds_fetches_manager.GetDeviceCopyChecks();
 
@@ -498,7 +486,8 @@ common::Status ExecuteGraph(const SessionState& session_state, FeedsFetchesManag
 
   std::unique_ptr<IExecutor> p_exec;
   if (sequential_execution) {
-    p_exec = std::unique_ptr<IExecutor>(new SequentialExecutor(terminate_flag));
+    p_exec = std::unique_ptr<IExecutor>(
+        new SequentialExecutor(tracer, terminate_flag));
   } else {
     p_exec = std::unique_ptr<IExecutor>(new ParallelExecutor(session_state, terminate_flag));
   }
@@ -509,8 +498,7 @@ common::Status ExecuteGraph(const SessionState& session_state, FeedsFetchesManag
     device_copy_checks.output_copy_needed = DeviceCopyCheck::NoCopy;
 
     // no device copies are needed so simple execute
-    ORT_RETURN_IF_ERROR(p_exec->Execute(session_state,
-                                        feeds_fetches_info.feeds_mlvalue_idxs, feeds,
+    ORT_RETURN_IF_ERROR(p_exec->Execute(session_state, feeds_fetches_info.feeds_mlvalue_idxs, feeds,
                                         feeds_fetches_info.fetches_mlvalue_idxs, fetches, fetch_allocators, logger));
   } else {
     bool copy_needed = false;
@@ -522,16 +510,14 @@ common::Status ExecuteGraph(const SessionState& session_state, FeedsFetchesManag
 
     // Copy inputs
     auto* copiers = cache_copy_info ? &feeds_fetches_manager.GetMutableFeedsDeviceCopiers() : nullptr;
-    ORT_RETURN_IF_ERROR(CopyInputsAcrossDevices(session_state,
-                                                feeds_fetches_info.feed_names, feeds, device_feeds,
+    ORT_RETURN_IF_ERROR(CopyInputsAcrossDevices(session_state, feeds_fetches_info.feed_names, feeds, device_feeds,
                                                 copy_needed, copiers));
 
     if (copy_needed) {
       p_feeds = &device_feeds;
     }
 
-    device_copy_checks.input_copy_needed = copy_needed ? DeviceCopyCheck::Copy
-                                                       : DeviceCopyCheck::NoCopy;
+    device_copy_checks.input_copy_needed = copy_needed ? DeviceCopyCheck::Copy : DeviceCopyCheck::NoCopy;
 
     // setup fetches.
     if (fetches.empty()) {
@@ -539,18 +525,14 @@ common::Status ExecuteGraph(const SessionState& session_state, FeedsFetchesManag
     }
 
     auto* use_provided_fetch_flags =
-        cache_copy_info ? &feeds_fetches_manager.GetMutableCanUseFetchDuringExecutionFlags()
-                        : nullptr;
+        cache_copy_info ? &feeds_fetches_manager.GetMutableCanUseFetchDuringExecutionFlags() : nullptr;
 
-    ORT_RETURN_IF_ERROR(SetupFetchesForExecute(session_state, feeds_fetches_info.output_names,
-                                               fetches, device_fetches,
+    ORT_RETURN_IF_ERROR(SetupFetchesForExecute(session_state, feeds_fetches_info.output_names, fetches, device_fetches,
                                                use_provided_fetch_flags));
     p_fetches = &device_fetches;
 
-    ORT_RETURN_IF_ERROR(p_exec->Execute(session_state,
-                                        feeds_fetches_info.feeds_mlvalue_idxs, *p_feeds,
-                                        feeds_fetches_info.fetches_mlvalue_idxs, *p_fetches, fetch_allocators,
-                                        logger));
+    ORT_RETURN_IF_ERROR(p_exec->Execute(session_state, feeds_fetches_info.feeds_mlvalue_idxs, *p_feeds,
+                                        feeds_fetches_info.fetches_mlvalue_idxs, *p_fetches, fetch_allocators, logger));
 
     copiers = cache_copy_info ? &feeds_fetches_manager.GetMutableFetchesDeviceCopiers() : nullptr;
     ORT_RETURN_IF_ERROR(CopyOutputsAcrossDevices(session_state, *p_fetches, fetches, copy_needed, copiers));
@@ -567,13 +549,9 @@ common::Status ExecuteGraph(const SessionState& session_state, FeedsFetchesManag
 }
 
 #if defined(DEBUG_NODE_INPUTS_OUTPUTS)
-std::ostream& operator<<(std::ostream& out, const BFloat16& value) {
-  return out << value.ToFloat();
-}
+std::ostream& operator<<(std::ostream& out, const BFloat16& value) { return out << value.ToFloat(); }
 
-std::ostream& operator<<(std::ostream& out, const MLFloat16& value) {
-  return out << value.val;
-}
+std::ostream& operator<<(std::ostream& out, const MLFloat16& value) { return out << value.val; }
 
 template <typename T>
 static void DumpTensor(const Tensor& tensor, const TensorShape& shape) {

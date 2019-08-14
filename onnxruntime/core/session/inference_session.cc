@@ -102,7 +102,6 @@ InferenceSession::InferenceSession(const SessionOptions& session_options,
       insert_cast_transformer_{"CastFloat16Transformer"} {
   ORT_ENFORCE(Environment::IsInitialized(),
               "Environment must be initialized before creating an InferenceSession.");
-
   InitLogger(logging_manager);
 
   session_state_.SetDataTransferMgr(&data_transfer_mgr_);
@@ -140,6 +139,9 @@ InferenceSession::~InferenceSession() {
       LOGS(*session_logger_, ERROR) << "Unknown error during EndProfiling()";
     }
   }
+#ifdef ONNXRUNTIME_ENABLE_INSTRUMENT
+  TraceLoggingWriteStop(session_activity, "OrtInferenceSessionActivity");
+#endif
 }
 
 common::Status InferenceSession::RegisterExecutionProvider(std::unique_ptr<IExecutionProvider> p_exec_provider) {
@@ -465,12 +467,13 @@ common::Status InferenceSession::Initialize() {
       LOGS(*session_logger_, ERROR) << "Model was not loaded";
       return common::Status(common::ONNXRUNTIME, common::FAIL, "Model was not loaded.");
     }
-
     if (is_inited_) {  // already initialized
       LOGS(*session_logger_, INFO) << "Session has already been initialized.";
       return common::Status::OK();
     }
-
+#ifdef ONNXRUNTIME_ENABLE_INSTRUMENT
+    TraceLoggingWriteStart(session_activity, "OrtInferenceSessionActivity");
+#endif
     // Register default CPUExecutionProvider if user didn't provide it through the Register() calls
     if (!execution_providers_.Get(onnxruntime::kCpuExecutionProvider)) {
       LOGS(*session_logger_, INFO) << "Adding default CPU execution provider.";
@@ -689,6 +692,14 @@ common::Status InferenceSession::ValidateOutputs(const std::vector<std::string>&
 Status InferenceSession::Run(const RunOptions& run_options, const std::vector<std::string>& feed_names,
                              const std::vector<OrtValue>& feeds, const std::vector<std::string>& output_names,
                              std::vector<OrtValue>* p_fetches) {
+#ifdef ONNXRUNTIME_ENABLE_INSTRUMENT
+  TraceLoggingActivity<ort_provider> ortrun_activity;
+  ortrun_activity.SetRelatedActivity(session_activity);
+  TraceLoggingWriteStart(ortrun_activity,"OrtRun");
+  void* tracer = &ortrun_activity;
+#else
+  void* tracer = nullptr;
+#endif
   auto tp = session_profiler_.StartTime();
   Status retval = Status::OK();
 
@@ -727,8 +738,7 @@ Status InferenceSession::Run(const RunOptions& run_options, const std::vector<st
     // execute the graph
     ORT_CHECK_AND_SET_RETVAL(
         utils::ExecuteGraph(session_state_, feeds_fetches_manager, feeds, *p_fetches, {},
-                            session_options_.enable_sequential_execution, run_options.terminate, run_logger,
-                            false));
+                            session_options_.enable_sequential_execution, run_options.terminate, run_logger, false, tracer));
 
   } catch (const std::exception& e) {
     retval = Status(common::ONNXRUNTIME, common::FAIL, e.what());
@@ -745,7 +755,9 @@ Status InferenceSession::Run(const RunOptions& run_options, const std::vector<st
   if (session_profiler_.IsEnabled()) {
     session_profiler_.EndTimeAndRecordEvent(profiling::SESSION_EVENT, "model_run", tp);
   }
-
+#ifdef ONNXRUNTIME_ENABLE_INSTRUMENT  
+  TraceLoggingWriteStop(ortrun_activity, "OrtRun");
+#endif
   return retval;
 }
 

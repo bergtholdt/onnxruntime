@@ -10,6 +10,9 @@
 #ifndef DISABLE_CONTRIB_OPS
 #include "core/graph/contrib_ops/contrib_defs.h"
 #endif
+#ifdef ONNXRUNTIME_ENABLE_INSTRUMENT
+#include "core/platform/tracing.h"
+#endif
 
 namespace onnxruntime {
 using namespace ::onnxruntime::common;
@@ -26,8 +29,11 @@ Status Environment::Create(std::unique_ptr<Environment>& environment) {
 }
 
 Status Environment::Initialize() {
+#ifdef ONNXRUNTIME_ENABLE_INSTRUMENT
+  TraceLoggingRegister(ort_provider);
+#endif
   auto status = Status::OK();
-
+  
   try {
     // Register Microsoft domain with min/max op_set version as 1/1.
     std::call_once(schemaRegistrationOnceFlag, []() {
@@ -80,6 +86,9 @@ Internal copy node
 }
 
 Environment::~Environment() {
+#ifdef ONNXRUNTIME_ENABLE_INSTRUMENT
+  TraceLoggingUnregister(ort_provider);
+#endif
   ::google::protobuf::ShutdownProtobufLibrary();
 }
 

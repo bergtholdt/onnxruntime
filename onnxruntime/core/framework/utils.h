@@ -42,14 +42,14 @@ common::Status ExecuteGraph(const SessionState& session_state, FeedsFetchesManag
                             const std::vector<OrtValue>& feeds, std::vector<OrtValue>& fetches,
                             const std::unordered_map<size_t, IExecutor::CustomAllocator>& fetch_allocators,
                             bool sequential_execution, const bool& terminate_flag, const logging::Logger& logger,
-                            bool cache_copy_info = true);
+                            bool cache_copy_info = true, void* tracer=nullptr);
 
 // ExecuteGraph used the cached information in feeds_fetches_manager.
 common::Status ExecuteGraphWithCachedInfo(
     const SessionState& session_state, const FeedsFetchesManager& feeds_fetches_manager,
     const std::vector<OrtValue>& feeds, std::vector<OrtValue>& fetches,
     const std::unordered_map<size_t, IExecutor::CustomAllocator>& fetch_allocators, bool sequential_execution,
-    const bool& terminate_flag, const logging::Logger& logger);
+    const bool& terminate_flag, const logging::Logger& logger, void* tracer=nullptr);
 
 #if defined(DEBUG_NODE_INPUTS_OUTPUTS)
 // to create a build with these enabled run the build script with

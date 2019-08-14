@@ -49,9 +49,10 @@ BENCHMARK(BM_CreateSession_WithGPU);
 #endif
 
 static void BM_CreateSession(benchmark::State& state) {
-  const ORTCHAR_T* model_path = ORT_TSTR("../models/opset8/test_bvlc_alexnet/model.onnx");
+  const ORTCHAR_T* model_path = ORT_TSTR("D:\\squeezenet\\model.onnx");
   OrtSessionOptions* session_option;
   ORT_BREAK_ON_ERROR(OrtCreateSessionOptions(&session_option));
+  ORT_BREAK_ON_ERROR(OrtSetSessionThreadPoolSize(session_option, 1));
   for (auto _ : state) {
     OrtSession* session;
     ORT_BREAK_ON_ERROR(OrtCreateSession(env, model_path, session_option, &session));

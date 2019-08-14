@@ -204,7 +204,7 @@ Status IterateSequence(OpKernelContextInternal& context, const SessionState& ses
     if (cached_ffm) {
       status = utils::ExecuteGraphWithCachedInfo(session_state, *cached_ffm, feeds, fetches, fetch_allocators,
                                                  /*sequential_execution*/ true, context.GetTerminateFlag(),
-                                                 context.Logger());
+                                                 context.Logger(),nullptr);
     } else {
       status = utils::ExecuteGraph(session_state, *ffm, feeds, fetches, fetch_allocators,
                                    /*sequential_execution*/ true, context.GetTerminateFlag(), context.Logger(),
