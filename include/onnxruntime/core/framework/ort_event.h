@@ -15,17 +15,8 @@
 #ifdef _WIN32
 using ORT_EVENT = void*;  //WIN32 handle
 #else
-struct OnnxRuntimeEvent {
- public:
-  onnxruntime::OrtMutex finish_event_mutex;
-  onnxruntime::OrtCondVar finish_event_data;
-  bool finished = false;
-  OnnxRuntimeEvent() = default;
-
-  ORT_DISALLOW_COPY_ASSIGNMENT_AND_MOVE(OnnxRuntimeEvent);
-};
-
-using ORT_EVENT = OnnxRuntimeEvent*;
+#include "core/platform/notification.h"
+using ORT_EVENT = onnxruntime::Notification*;
 #endif
 
 //TODO: move them to c_api.h when it's ready to publish
