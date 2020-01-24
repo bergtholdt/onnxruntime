@@ -10,6 +10,7 @@ import logging
 import multiprocessing
 import os
 import platform
+import distro
 import re
 import shutil
 import subprocess
@@ -174,7 +175,7 @@ def is_windows():
     return sys.platform.startswith("win")
 
 def is_ubuntu_1604():
-    return platform.linux_distribution()[0] == 'Ubuntu' and platform.linux_distribution()[1] == '16.04'
+    return distro.linux_distribution(full_distribution_name=False)[0] == 'Ubuntu' and distro.linux_distribution(full_distribution_name=False)[1] == '16.04'
 
 def get_config_build_dir(build_dir, config):
     # build directory per configuration
